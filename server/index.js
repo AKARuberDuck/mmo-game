@@ -10,8 +10,8 @@ const io = socketIO(server, { cors: { origin: '*' } });
 const PORT = process.env.PORT || 3000;
 
 const SUPABASE_URL = 'https://hbfyvamesmgdczjkqnzx.supabase.co';
-const SUPABASE_KEY = 'YOUR_SUPABASE_PUBLIC_ANON_KEY'; // Replace this!
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiZnl2YW1lc21nZGN6amtxbnp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk4MzU1MDgsImV4cCI6MjA2NTQxMTUwOH0.9srkRg41WGkDEzdOBfnKWLuJEVtmy8AZvOHT_fsaf6Q'; // Replace this!
+const supabase = createClient(https://hbfyvamesmgdczjkqnzx.supabase.co, eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiZnl2YW1lc21nZGN6amtxbnp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk4MzU1MDgsImV4cCI6MjA2NTQxMTUwOH0.9srkRg41WGkDEzdOBfnKWLuJEVtmy8AZvOHT_fsaf6Q);
 
 // Game state
 let players = {};
