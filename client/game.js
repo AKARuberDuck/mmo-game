@@ -1,4 +1,4 @@
-const socket = io('https://your-render-url.onrender.com'); // Replace with your actual URL
+const socket = io('https://mmo-game.onrender.com');
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const chatInput = document.getElementById('chat-input');
