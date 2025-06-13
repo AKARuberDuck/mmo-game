@@ -93,3 +93,27 @@ canvas {
   z-index: 5;
   mix-blend-mode: screen;
 }
+#hud {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  font-family: monospace;
+  font-size: 14px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  z-index: 10;
+}
+
+.weather-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+  mix-blend-mode: screen;
+}
