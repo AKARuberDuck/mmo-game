@@ -13,6 +13,17 @@
   <ul id="score-list"></ul>
 </div>
   <canvas id="game" width="800" height="600" style="border:1px solid #000"></canvas>
+  <!-- HUD Overlay -->
+<div id="hud">
+  <div id="stats">
+    ❤️ HP: <span id="hp">100</span> |
+    💰 Coins: <span id="coins">0</span> |
+    ⭐ XP: <span id="xp">0</span> |
+    🌍 Zone: <span id="zone">N/A</span>
+  </div>
+</div>
+<!-- Weather Canvas Overlay -->
+<canvas id="weather-canvas" class="weather-overlay"></canvas>
   <div id="chat-box" style="height:100px; overflow-y:scroll; border:1px solid #888; margin-top:8px;"></div>
   <input type="text" id="chat-input" placeholder="Type to chat..." />
   <audio id="hit-sfx" src="https://cdn.jsdelivr.net/gh/oguzeroglu/sample-sfx/hit.mp3"></audio>
