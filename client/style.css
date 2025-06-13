@@ -8,7 +8,6 @@ body {
 canvas {
   display: block;
 }
-
 /* Lobby screen */
 #lobby-screen {
   position: absolute;
@@ -55,7 +54,6 @@ canvas {
 #join-btn:hover {
   background: #45a049;
 }
-
 /* Scoreboard */
 #scoreboard {
   position: absolute;
@@ -84,7 +82,6 @@ canvas {
   font-size: 14px;
   padding: 2px 0;
 }
-
 /* Optional weather visual effects */
 .weather-overlay {
   position: absolute;
