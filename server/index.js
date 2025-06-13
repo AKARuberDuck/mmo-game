@@ -9,16 +9,16 @@ const io = socketIO(server, { cors: { origin: '*' } });
 
 const PORT = process.env.PORT || 3000;
 
-// 🔐 Replace these with your actual Supabase credentials:
 const SUPABASE_URL = 'https://hbfyvamesmgdczjkqnzx.supabase.co';
-const SUPABASE_KEY = 'YOUR_PUBLIC_ANON_KEY';
+const SUPABASE_KEY = 'YOUR_SUPABASE_PUBLIC_ANON_KEY'; // Replace this!
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Game state
 let players = {};
+let lobby = {};
 let structures = [];
 let powerUps = [];
-let npcs = [{ id: 'npc1', x: 300, y: 300, hp: 50 }];
 let weather = 'clear';
-let lobby = {};
 
 function rand(min, max) {
   return Math.random() * (max - min) + min;
@@ -27,22 +27,21 @@ function rand(min, max) {
 function randomName() {
   return 'Player_' + Math.floor(Math.random() * 1000);
 }
+
+// Weather system: broadcast every 30s
 setInterval(() => {
-  const options = ['clear', 'rain', 'storm', 'snow'];
-  weather = options[Math.floor(Math.random() * options.length)];
+  const states = ['clear', 'rain', 'snow', 'storm'];
+  weather = states[Math.floor(Math.random() * states.length)];
   io.emit('weather-update', weather);
 }, 30000);
-async function loadPlayerFromDB(socketId) {
-  const { data } = await supabase
-    .from('players')
-    .select('*')
-    .eq('id', socketId)
-    .single();
 
+// Load or create player in DB
+async function loadPlayerFromDB(id) {
+  const { data } = await supabase.from('players').select('*').eq('id', id).single();
   if (data) return data;
 
   const newPlayer = {
-    id: socketId,
+    id,
     name: randomName(),
     class: 'Scout',
     xp: 0,
@@ -51,42 +50,63 @@ async function loadPlayerFromDB(socketId) {
     kills: 0,
     deaths: 0
   };
+
   await supabase.from('players').insert([newPlayer]);
   return newPlayer;
 }
 
-async function savePlayerToDB(socketId) {
-  const p = players[socketId];
+// Save player back to DB
+async function savePlayerToDB(id) {
+  const p = players[id];
   if (!p) return;
-  await supabase.from('players').update(p).eq('id', socketId);
+  await supabase.from('players').update(p).eq('id', id);
 }
+
+// Scoreboard API
+app.get('/api/leaderboard', async (req, res) => {
+  const { data } = await supabase
+    .from('players')
+    .select('name, kills, deaths, level')
+    .order('kills', { ascending: false })
+    .limit(10);
+
+  res.json(data || []);
+});
+
+// WebSocket logic
 io.on('connection', async socket => {
   console.log(`[+] ${socket.id} connected`);
 
-  const player = await loadPlayerFromDB(socket.id);
-  player.hp = 100;
-  player.x = rand(20, 760);
-  player.y = rand(20, 560);
-  player.zone = null;
-  players[socket.id] = player;
-  lobby[socket.id] = player;
+  const p = await loadPlayerFromDB(socket.id);
+  p.hp = 100;
+  p.x = rand(20, 760);
+  p.y = rand(20, 560);
+  p.zone = null;
+  players[socket.id] = p;
+  lobby[socket.id] = p;
 
   io.emit('lobby-update', Object.values(lobby));
 
   socket.on('join-game', zone => {
-    player.zone = zone || 'forest';
+    p.zone = zone || 'forest';
     delete lobby[socket.id];
 
     io.emit('lobby-update', Object.values(lobby));
-    socket.emit('init', { id: socket.id, players, powerUps });
-    socket.broadcast.emit('player-joined', { id: socket.id, player });
+    socket.emit('init', {
+      id: socket.id,
+      players,
+      powerUps
+    });
+
+    socket.broadcast.emit('player-joined', { id: socket.id, player: p });
   });
+
   socket.on('move', pos => {
-    const p = players[socket.id];
-    if (!p) return;
-    p.x = Math.max(0, Math.min(780, pos.x));
-    p.y = Math.max(0, Math.min(580, pos.y));
-    io.emit('player-moved', { id: socket.id, pos: p });
+    const player = players[socket.id];
+    if (!player) return;
+    player.x = Math.max(0, Math.min(780, pos.x));
+    player.y = Math.max(0, Math.min(580, pos.y));
+    io.emit('player-moved', { id: socket.id, pos: player });
   });
 
   socket.on('shoot', targetId => {
@@ -134,12 +154,12 @@ io.on('connection', async socket => {
     if (cmd.startsWith('/kick')) {
       const id = cmd.split(' ')[1];
       if (players[id]) io.to(id).disconnect();
-    }
-    if (cmd.startsWith('/msg')) {
+    } else if (cmd.startsWith('/msg')) {
       const msg = cmd.slice(5);
       io.emit('chat', `[ADMIN]: ${msg}`);
     }
   });
+
   socket.on('disconnect', async () => {
     console.log(`[-] ${socket.id} disconnected`);
     await savePlayerToDB(socket.id);
@@ -149,12 +169,5 @@ io.on('connection', async socket => {
     io.emit('lobby-update', Object.values(lobby));
   });
 });
-app.get('/api/leaderboard', async (req, res) => {
-  const { data } = await supabase
-    .from('players')
-    .select('name, kills, deaths, level')
-    .order('kills', { ascending: false })
-    .limit(10);
-  res.json(data || []);
-});
+
 server.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
