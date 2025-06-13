@@ -1,114 +1,109 @@
 const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server, { cors: { origin: '*' } });
 
 const PORT = process.env.PORT || 3000;
-const players = {};
-const powerUps = [];
-const structures = [];
+
+// 🔐 Replace these with your actual Supabase credentials:
+const SUPABASE_URL = 'https://hbfyvamesmgdczjkqnzx.supabase.co';
+const SUPABASE_KEY = 'YOUR_PUBLIC_ANON_KEY';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+let players = {};
+let structures = [];
+let powerUps = [];
 let npcs = [{ id: 'npc1', x: 300, y: 300, hp: 50 }];
+let weather = 'clear';
+let lobby = {};
 
 function rand(min, max) {
   return Math.random() * (max - min) + min;
 }
 
-function randomColor() {
-  const letters = '0123456789ABCDEF';
-  return '#' + Array.from({ length: 6 }, () => letters[Math.floor(Math.random() * 16)]).join('');
-}
-
 function randomName() {
   return 'Player_' + Math.floor(Math.random() * 1000);
 }
-
-function spawnPowerUp() {
-  return { id: Date.now(), x: rand(20, 750), y: rand(20, 550), type: 'health' };
-}
-
-// NPC movement
 setInterval(() => {
-  npcs.forEach(npc => {
-    const targets = Object.values(players).filter(p => p.zone === (npc.zone || 'forest'));
-    if (targets.length === 0) return;
-    const target = targets[Math.floor(Math.random() * targets.length)];
-    const dx = target.x - npc.x;
-    const dy = target.y - npc.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist > 5) {
-      npc.x += (dx / dist) * 1;
-      npc.y += (dy / dist) * 1;
-    }
-  });
-  io.emit('npc-update', npcs);
-}, 500);
+  const options = ['clear', 'rain', 'storm', 'snow'];
+  weather = options[Math.floor(Math.random() * options.length)];
+  io.emit('weather-update', weather);
+}, 30000);
+async function loadPlayerFromDB(socketId) {
+  const { data } = await supabase
+    .from('players')
+    .select('*')
+    .eq('id', socketId)
+    .single();
 
-// Power-up spawning
-setInterval(() => {
-  const p = spawnPowerUp();
-  powerUps.push(p);
-  io.emit('new-powerup', p);
-}, 10000);
+  if (data) return data;
 
-io.on('connection', socket => {
-  console.log(`[+] ${socket.id} connected`);
-  players[socket.id] = {
-    id: socket.id,
-    x: rand(0, 780),
-    y: rand(0, 580),
-    hp: 100,
-    color: randomColor(),
+  const newPlayer = {
+    id: socketId,
     name: randomName(),
-    kills: 0,
-    deaths: 0,
+    class: 'Scout',
     xp: 0,
     level: 1,
-    zone: 'forest',
     coins: 0,
-    class: 'Scout'
+    kills: 0,
+    deaths: 0
   };
+  await supabase.from('players').insert([newPlayer]);
+  return newPlayer;
+}
 
-  socket.emit('init', { id: socket.id, players, powerUps });
-  socket.broadcast.emit('player-joined', { id: socket.id, player: players[socket.id] });
+async function savePlayerToDB(socketId) {
+  const p = players[socketId];
+  if (!p) return;
+  await supabase.from('players').update(p).eq('id', socketId);
+}
+io.on('connection', async socket => {
+  console.log(`[+] ${socket.id} connected`);
 
+  const player = await loadPlayerFromDB(socket.id);
+  player.hp = 100;
+  player.x = rand(20, 760);
+  player.y = rand(20, 560);
+  player.zone = null;
+  players[socket.id] = player;
+  lobby[socket.id] = player;
+
+  io.emit('lobby-update', Object.values(lobby));
+
+  socket.on('join-game', zone => {
+    player.zone = zone || 'forest';
+    delete lobby[socket.id];
+
+    io.emit('lobby-update', Object.values(lobby));
+    socket.emit('init', { id: socket.id, players, powerUps });
+    socket.broadcast.emit('player-joined', { id: socket.id, player });
+  });
   socket.on('move', pos => {
-    if (players[socket.id]) {
-      players[socket.id].x = Math.max(0, Math.min(780, pos.x));
-      players[socket.id].y = Math.max(0, Math.min(580, pos.y));
-      socket.broadcast.emit('player-moved', { id: socket.id, pos: players[socket.id] });
-    }
+    const p = players[socket.id];
+    if (!p) return;
+    p.x = Math.max(0, Math.min(780, pos.x));
+    p.y = Math.max(0, Math.min(580, pos.y));
+    io.emit('player-moved', { id: socket.id, pos: p });
   });
 
   socket.on('shoot', targetId => {
-    const attacker = players[socket.id];
-    const target = players[targetId];
-    if (attacker && target && attacker.zone === target.zone) {
-      target.hp -= 25;
-      io.emit('player-hit', { id: targetId, hp: target.hp });
-      if (target.hp <= 0) {
-        attacker.kills++;
-        attacker.xp += 20;
-        attacker.coins += 10;
-        if (attacker.xp >= attacker.level * 50) attacker.level++;
-        target.deaths++;
-        target.hp = 100;
-        target.x = rand(0, 780);
-        target.y = rand(0, 580);
-        io.emit('player-respawned', { id: targetId, player: target });
-        console.log(`[💀] ${attacker.name} killed ${target.name}`);
-      }
-    }
-  });
+    const a = players[socket.id];
+    const t = players[targetId];
+    if (!a || !t || a.zone !== t.zone) return;
 
-  socket.on('collect', pId => {
-    const pIndex = powerUps.findIndex(p => p.id === pId);
-    if (pIndex !== -1) {
-      players[socket.id].hp = Math.min(100, players[socket.id].hp + 20);
-      powerUps.splice(pIndex, 1);
-      io.emit('powerup-collected', { id: pId, player: socket.id, hp: players[socket.id].hp });
+    t.hp -= 25;
+    io.emit('player-hit', { id: targetId, hp: t.hp });
+
+    if (t.hp <= 0) {
+      a.kills++; a.coins += 10; a.xp += 20;
+      if (a.xp >= a.level * 50) a.level++;
+      t.deaths++; t.hp = 100;
+      t.x = rand(0, 780); t.y = rand(0, 580);
+      io.emit('player-respawned', { id: targetId, player: t });
+      console.log(`[💀] ${a.name} killed ${t.name}`);
     }
   });
 
@@ -126,36 +121,40 @@ io.on('connection', socket => {
     }
   });
 
+  socket.on('chat', msg => {
+    io.emit('chat', `${players[socket.id].name}: ${msg}`);
+  });
+
   socket.on('change-zone', zone => {
     players[socket.id].zone = zone;
     socket.emit('zone-changed', zone);
   });
 
-  socket.on('chat', msg => {
-    io.emit('chat', `${players[socket.id].name}: ${msg}`);
-  });
-
-  socket.on('admin-cmd', raw => {
-    if (raw.startsWith('/kick')) {
-      const id = raw.split(' ')[1];
+  socket.on('admin-cmd', cmd => {
+    if (cmd.startsWith('/kick')) {
+      const id = cmd.split(' ')[1];
       if (players[id]) io.to(id).disconnect();
     }
-    if (raw.startsWith('/msg')) {
-      const msg = raw.slice(5);
+    if (cmd.startsWith('/msg')) {
+      const msg = cmd.slice(5);
       io.emit('chat', `[ADMIN]: ${msg}`);
     }
-    if (raw.startsWith('/powerup')) {
-      const p = spawnPowerUp();
-      powerUps.push(p);
-      io.emit('new-powerup', p);
-    }
   });
-
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log(`[-] ${socket.id} disconnected`);
+    await savePlayerToDB(socket.id);
     delete players[socket.id];
+    delete lobby[socket.id];
     io.emit('player-left', socket.id);
+    io.emit('lobby-update', Object.values(lobby));
   });
 });
-
-server.listen(PORT, () => console.log(`🌐 Server running on port ${PORT}`));
+app.get('/api/leaderboard', async (req, res) => {
+  const { data } = await supabase
+    .from('players')
+    .select('name, kills, deaths, level')
+    .order('kills', { ascending: false })
+    .limit(10);
+  res.json(data || []);
+});
+server.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
