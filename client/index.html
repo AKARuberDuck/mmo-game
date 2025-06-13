@@ -3,6 +3,10 @@
 <head><title>Arrow MMO</title></head>
 <body>
   <canvas id="game" width="800" height="600" style="border:1px solid #000"></canvas>
+  <div id="chat-box" style="height:100px; overflow-y:scroll; border:1px solid #888; margin-top:8px;"></div>
+  <input type="text" id="chat-input" placeholder="Type to chat..." />
+  <audio id="hit-sfx" src="https://cdn.jsdelivr.net/gh/oguzeroglu/sample-sfx/hit.mp3"></audio>
+  <audio id="respawn-sfx" src="https://cdn.jsdelivr.net/gh/oguzeroglu/sample-sfx/respawn.mp3"></audio>
   <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
   <script src="game.js"></script>
 </body>
