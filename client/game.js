@@ -28,7 +28,6 @@ let mouseX = 0;
 let mouseY = 0;
 let mouseDown = false;
 
-// Socket Events
 socket.on('init', data => {
   player.id = data.id;
   Object.assign(player, data.players[data.id]);
@@ -41,7 +40,6 @@ socket.on('player-hit', ({ id, hp }) => {
   }
 });
 
-// Input Events
 document.addEventListener('keydown', e => {
   const key = e.key.toLowerCase();
   keys[key] = true;
@@ -64,7 +62,6 @@ canvas.addEventListener('mousemove', e => {
 canvas.addEventListener('mousedown', () => (mouseDown = true));
 canvas.addEventListener('mouseup', () => (mouseDown = false));
 
-// Movement
 function updateMovement() {
   const speed = 3;
   if (keys['w'] || keys['arrowup']) player.y -= speed;
@@ -75,7 +72,6 @@ function updateMovement() {
   socket.emit('move', { x: player.x, y: player.y });
 }
 
-// Firing
 function tryShoot() {
   if (!mouseDown || player.isReloading) return;
 
@@ -97,7 +93,6 @@ function tryShoot() {
   }
 }
 
-// Reload
 function reloadWeapon() {
   player.isReloading = true;
   setTimeout(() => {
@@ -106,16 +101,15 @@ function reloadWeapon() {
   }, weapons[player.weapon].reloadTime);
 }
 
-// Aim
 function getAngleToMouse() {
   const dx = mouseX - canvas.width / 2;
   const dy = mouseY - canvas.height / 2;
   return Math.atan2(dy, dx);
 }
 
-// Render
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
   const camX = player.x - canvas.width / 2;
   const camY = player.y - canvas.height / 2;
 
@@ -139,7 +133,6 @@ function render() {
   if (player.isReloading) ctx.fillText('Reloading...', 10, 80);
 }
 
-// Main Loop
 function gameLoop() {
   updateMovement();
   tryShoot();
