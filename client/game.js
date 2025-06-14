@@ -1,4 +1,5 @@
 import { weapons } from './weapons.js';
+import { spawnProjectile, updateProjectiles } from './projectiles.js';
 
 const socket = io();
 const canvas = document.querySelector('canvas');
@@ -83,6 +84,10 @@ function tryShoot() {
 
   if (now - player.lastShot >= weapon.fireRate && player.ammo[player.weapon] > 0) {
     socket.emit('shoot', { angle: player.angle, weapon: player.weapon });
+    const muzzleX = player.x + Math.cos(player.angle) * 20;
+const muzzleY = player.y + Math.sin(player.angle) * 20;
+spawnProjectile(muzzleX, muzzleY, player.angle);
+
     player.lastShot = now;
     player.ammo[player.weapon]--;
   }
@@ -111,6 +116,9 @@ function getAngleToMouse() {
 // Render
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const camX = player.x - canvas.width / 2;
+const camY = player.y - canvas.height / 2;
+updateProjectiles(ctx, camX, camY);
   player.angle = getAngleToMouse();
 
   // Draw self
