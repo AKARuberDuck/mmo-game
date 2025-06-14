@@ -1,5 +1,4 @@
 import { weapons } from './weapons.js';
-import { spawnProjectile, updateProjectiles } from './projectiles.js';
 
 const socket = io();
 const canvas = document.querySelector('canvas');
@@ -78,6 +77,7 @@ function updateMovement() {
 // Firing
 function tryShoot() {
   if (!mouseDown || player.isReloading) return;
+
   const now = Date.now();
   const weapon = weapons[player.weapon];
 
@@ -130,7 +130,7 @@ function render() {
   if (player.isReloading) ctx.fillText('Reloading...', 10, 80);
 }
 
-// Loop
+// Main Loop
 function gameLoop() {
   updateMovement();
   tryShoot();
