@@ -1,4 +1,4 @@
-import { weapons } from './weapons.js';
+const weapons = require('./weapons.js');
 import { spawnProjectile, updateProjectiles } from './projectiles.js';
 import { classes, renderClassOverlay } from './classSelector.js';
 
