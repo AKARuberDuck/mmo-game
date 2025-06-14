@@ -161,3 +161,96 @@ function getAngleToMouse() {
   const dy = mouseY - canvas.height / 2;
   return Math.atan2(dy, dx);
 }
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const camX = player.x - canvas.width / 2;
+  const camY = player.y - canvas.height / 2;
+  player.angle = getAngleToMouse();
+
+  updateProjectiles(ctx, camX, camY);
+
+  Object.entries(otherPlayers).forEach(([id, p]) => {
+    if (id === player.id) return;
+
+    const sx = p.x - camX;
+    const sy = p.y - camY;
+
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(p.angle || 0);
+    ctx.fillStyle = 'red';
+    ctx.fillRect(-10, -10, 20, 20);
+    ctx.restore();
+
+    ctx.fillStyle = 'white';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.name || `P${id.slice(0, 4)}`, sx, sy - 20);
+    ctx.fillStyle = 'darkred';
+    ctx.fillRect(sx - 20, sy - 10, 40, 4);
+    ctx.fillStyle = 'lime';
+    ctx.fillRect(sx - 20, sy - 10, 40 * (p.hp / 100), 4);
+  });
+
+  // Player avatar
+  ctx.save();
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate(player.angle);
+  ctx.fillStyle = 'blue';
+  ctx.fillRect(-10, -10, 20, 20);
+  ctx.restore();
+
+  // HUD
+  ctx.fillStyle = 'white';
+  ctx.font = '14px monospace';
+  ctx.fillText(`HP: ${player.hp}`, 10, 20);
+  ctx.fillText(`Weapon: ${player.weapon}`, 10, 40);
+  ctx.fillText(`Ammo: ${player.ammo[player.weapon] || 0}`, 10, 60);
+  ctx.fillText(`Level: ${player.level} XP: ${player.xp}`, 10, 80);
+  if (player.isReloading) ctx.fillText('Reloading...', 10, 100);
+  ctx.fillText('[F] Fullscreen | [Enter] Chat | [C] Switch Class', 10, 130);
+
+  // Killfeed
+  killfeed.forEach((e, i) => {
+    if (Date.now() - e.time < 5000) {
+      ctx.fillText(e.msg, canvas.width - 220, 100 + i * 18);
+    }
+  });
+
+  // Chat
+  Object.values(messages).forEach((e, i) => {
+    if (Date.now() - e.time < 7000) {
+      ctx.fillStyle = 'lightgreen';
+      ctx.fillText(e.msg, 10, canvas.height - 20 - i * 18);
+    }
+  });
+}
+function renderMinimap() {
+  const miniX = canvas.width - 110;
+  const miniY = canvas.height - 110;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(miniX, miniY, 100, 100);
+
+  Object.entries(otherPlayers).forEach(([id, p]) => {
+    if (id === player.id) return;
+    const dotX = miniX + p.x * MAP_SCALE;
+    const dotY = miniY + p.y * MAP_SCALE;
+    ctx.fillStyle = 'red';
+    ctx.fillRect(dotX, dotY, 4, 4);
+  });
+
+  // Player on minimap
+  ctx.fillStyle = 'blue';
+  ctx.fillRect(miniX + player.x * MAP_SCALE, miniY + player.y * MAP_SCALE, 5, 5);
+  ctx.strokeStyle = 'white';
+  ctx.strokeRect(miniX, miniY, 100, 100);
+}
+function gameLoop() {
+  updateMovement();
+  tryShoot();
+  render();
+  renderMinimap();
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
