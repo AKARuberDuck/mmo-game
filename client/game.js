@@ -84,12 +84,12 @@ function tryShoot() {
 
   if (now - player.lastShot >= weapon.fireRate && player.ammo[player.weapon] > 0) {
     socket.emit('shoot', { angle: player.angle, weapon: player.weapon });
-    const muzzleX = player.x + Math.cos(player.angle) * 20;
-const muzzleY = player.y + Math.sin(player.angle) * 20;
-spawnProjectile(muzzleX, muzzleY, player.angle);
-
     player.lastShot = now;
     player.ammo[player.weapon]--;
+
+    const muzzleX = player.x + Math.cos(player.angle) * 20;
+    const muzzleY = player.y + Math.sin(player.angle) * 20;
+    spawnProjectile(muzzleX, muzzleY, player.angle);
   }
 
   if (player.ammo[player.weapon] === 0 && !player.isReloading) {
@@ -117,11 +117,12 @@ function getAngleToMouse() {
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const camX = player.x - canvas.width / 2;
-const camY = player.y - canvas.height / 2;
-updateProjectiles(ctx, camX, camY);
-  player.angle = getAngleToMouse();
+  const camY = player.y - canvas.height / 2;
 
-  // Draw self
+  player.angle = getAngleToMouse();
+  updateProjectiles(ctx, camX, camY);
+
+  // Draw player
   ctx.save();
   ctx.translate(canvas.width / 2, canvas.height / 2);
   ctx.rotate(player.angle);
