@@ -1,3 +1,5 @@
+import { classes, renderClassOverlay } from './classSelector.js';
+
 Object.entries(otherPlayers).forEach(([id, p]) => {
   if (id === player.id) return; // skip self
 
@@ -23,13 +25,14 @@ let player = {
   x: 400,
   y: 300,
   angle: 0,
+  class: null,
+  name: null,
   hp: 100,
-  weapon: 'rifle',
-  ammo: {
-    rifle: weapons.rifle.maxAmmo,
-    shotgun: weapons.shotgun.maxAmmo,
-    pistol: weapons.pistol.maxAmmo
-  },
+  xp: 0,
+  level: 1,
+  speed: 3,
+  weapon: null,
+  ammo: {},
   lastShot: 0,
   isReloading: false
 };
