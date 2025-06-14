@@ -1,15 +1,14 @@
 {
-  "name": "arrow-mmo",
+  "name": "mmo-game",
   "version": "1.0.0",
+  "description": "Multiplayer MMO Game",
   "main": "server/index.js",
+  "type": "module",
   "scripts": {
     "start": "node server/index.js"
-    "type": "module"
   },
   "dependencies": {
-  "express": "^4.18.2",
-  "socket.io": "^4.6.1",
-  "@supabase/supabase-js": "^2.39.5"
-}
-
+    "express": "^4.17.1",
+    "socket.io": "^4.5.0"
+  }
 }
