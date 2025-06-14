@@ -1,4 +1,5 @@
 import { weapons } from './weapons.js';
+import { spawnProjectile, updateProjectiles } from './projectiles.js';
 
 const socket = io();
 const canvas = document.querySelector('canvas');
