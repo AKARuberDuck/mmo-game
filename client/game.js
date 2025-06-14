@@ -1,125 +1,92 @@
-const socket = io('https://mmo-game.onrender.com');
+const socket = io(); // auto-connect to same domain
+const canvas = document.querySelector('canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-const lobbyDiv = document.getElementById('lobby-screen');
-const lobbyList = document.getElementById('lobby-list');
-const joinBtn = document.getElementById('join-btn');
-const scoreboardList = document.getElementById('score-list');
+let player = {
+  id: null,
+  x: 400,
+  y: 300,
+  angle: 0,
+  weapon: 'rifle',
+  hp: 100,
+  ammo: { rifle: 10, shotgun: 4, pistol: 15 }
+};
 
-const hpEl = document.getElementById('hp');
-const coinsEl = document.getElementById('coins');
-const xpEl = document.getElementById('xp');
-const zoneEl = document.getElementById('zone');
-
-const weatherCanvas = document.getElementById('weather-canvas');
-const wctx = weatherCanvas.getContext('2d');
-weatherCanvas.width = window.innerWidth;
-weatherCanvas.height = window.innerHeight;
-
-let weatherState = 'clear';
-let particles = [];
-let player = {};
-socket.on('lobby-update', players => {
-  lobbyList.innerHTML = '';
-  players.forEach(p => {
-    const li = document.createElement('li');
-    li.textContent = `${p.name} (${p.class})`;
-    lobbyList.appendChild(li);
-  });
-  lobbyDiv.style.display = 'block';
-});
-
-joinBtn.addEventListener('click', () => {
-  socket.emit('join-game', 'forest');
-  lobbyDiv.style.display = 'none';
-});
+const keys = {};
+let mouseX = 0;
+let mouseY = 0;
+let mouseDown = false;
 socket.on('init', data => {
-  player = {
-    id: data.id,
-    ...data.players[data.id]
-  };
-  updateHUD();
-});
-function loadScoreboard() {
-  fetch('/api/leaderboard')
-    .then(res => res.json())
-    .then(data => {
-      scoreboardList.innerHTML = '';
-      data.forEach(p => {
-        const li = document.createElement('li');
-        li.textContent = `${p.name}: ${p.kills}K / ${p.deaths}D (Lvl ${p.level})`;
-        scoreboardList.appendChild(li);
-      });
-    });
-}
-loadScoreboard();
-socket.on('weather-update', state => {
-  weatherState = state;
-  if (state === 'rain' || state === 'snow') initParticles(state);
-  else particles = [];
+  player.id = data.id;
+  player = { ...player, ...data.players[data.id] };
 });
 
-function initParticles(type) {
-  particles = [];
-  for (let i = 0; i < 150; i++) {
-    particles.push({
-      x: Math.random() * weatherCanvas.width,
-      y: Math.random() * weatherCanvas.height,
-      speed: type === 'rain' ? 4 + Math.random() * 4 : 1 + Math.random() * 2,
-      length: type === 'rain' ? 10 + Math.random() * 10 : 2,
-      type
-    });
-  }
-}
-
-function drawWeather() {
-  wctx.clearRect(0, 0, weatherCanvas.width, weatherCanvas.height);
-  wctx.fillStyle = weatherState === 'snow' ? '#fff' : 'rgba(173,216,230,0.6)';
-  wctx.strokeStyle = wctx.fillStyle;
-
-  particles.forEach(p => {
-    wctx.beginPath();
-    if (p.type === 'rain') {
-      wctx.moveTo(p.x, p.y);
-      wctx.lineTo(p.x, p.y + p.length);
-      wctx.stroke();
-    } else {
-      wctx.arc(p.x, p.y, p.length, 0, Math.PI * 2);
-      wctx.fill();
-    }
-
-    p.y += p.speed;
-    if (p.y > weatherCanvas.height) {
-      p.y = -p.length;
-      p.x = Math.random() * weatherCanvas.width;
-    }
-  });
-
-  requestAnimationFrame(drawWeather);
-}
-drawWeather();
-function updateHUD() {
-  hpEl.textContent = player.hp || 100;
-  coinsEl.textContent = player.coins || 0;
-  xpEl.textContent = player.xp || 0;
-  zoneEl.textContent = player.zone || 'N/A';
-}
 socket.on('player-hit', ({ id, hp }) => {
   if (id === player.id) {
     player.hp = hp;
-    updateHUD();
+    console.log(`You've been hit! HP: ${hp}`);
   }
 });
+document.addEventListener('keydown', e => (keys[e.key.toLowerCase()] = true));
+document.addEventListener('keyup', e => (keys[e.key.toLowerCase()] = false));
+canvas.addEventListener('mousemove', e => {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+});
+canvas.addEventListener('mousedown', () => (mouseDown = true));
+canvas.addEventListener('mouseup', () => (mouseDown = false));
+function updateMovement() {
+  const speed = 3;
+  if (keys['w']) player.y -= speed;
+  if (keys['s']) player.y += speed;
+  if (keys['a']) player.x -= speed;
+  if (keys['d']) player.x += speed;
 
-socket.on('player-respawned', ({ id, player: data }) => {
-  if (id === player.id) {
-    player = { ...player, ...data };
-    updateHUD();
-  }
-});
+  socket.emit('move', { x: player.x, y: player.y });
+}
+function getAngleToMouse() {
+  const dx = mouseX - canvas.width / 2;
+  const dy = mouseY - canvas.height / 2;
+  return Math.atan2(dy, dx);
+}
 
-socket.on('item-used', data => {
-  if (data.id === player.id) {
-    player = { ...player, ...data };
-    updateHUD();
+function tryShoot() {
+  if (!mouseDown) return;
+  const now = Date.now();
+  if (!player.lastShot || now - player.lastShot > 300) {
+    socket.emit('shoot', { angle: player.angle, weapon: player.weapon });
+    player.lastShot = now;
   }
-});
+}
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const camX = player.x - canvas.width / 2;
+  const camY = player.y - canvas.height / 2;
+
+  player.angle = getAngleToMouse();
+
+  // Draw player
+  ctx.save();
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate(player.angle);
+  ctx.fillStyle = 'blue';
+  ctx.fillRect(-10, -10, 20, 20);
+  ctx.restore();
+
+  // HUD
+  ctx.fillStyle = 'white';
+  ctx.font = '14px monospace';
+  ctx.fillText(`HP: ${player.hp}`, 10, 20);
+  ctx.fillText(`Weapon: ${player.weapon}`, 10, 40);
+}
+
+function gameLoop() {
+  updateMovement();
+  tryShoot();
+  render();
+  requestAnimationFrame(gameLoop);
+}
+gameLoop();
